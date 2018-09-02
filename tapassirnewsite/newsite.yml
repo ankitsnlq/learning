@@ -1,0 +1,33 @@
+---
+- hosts: tapas
+  vars: 
+    domain: test.com
+    sshkey: id_rsa.pub
+  tasks:
+   - name: Create Linux user for new site.
+     user: name={{ domain }} shell=/bin/bash system=no createhome=yes home=/home/{{ domain }}
+   - name: Change permission for user home.
+     file: dest=/home/{{ domain }} owner={{ domain }} group={{ domain }} mode=u=rwX,g=rX,o=rX recurse=yes
+   - name: create .ssh Folder. 
+     file: path=/home/{{ domain }}/{{item}} state=directory owner={{ domain }} group={{ domain }} mode=0755
+     with_items:
+         - .ssh
+         - public_html
+   - name: Change permission for user .ssh folder.
+     file: dest=/home/{{ domain }}/.ssh owner={{ domain }} group={{ domain }} mode=700 recurse=yes
+   - name: Copy Authorized key for new user.
+     authorized_key: user={{ domain }} state=present key="{{ lookup('file', '{{ sshkey }}') }}"
+   - name: create New Domain Virtualhost File in apache
+     template: src=virtualhost.conf dest=/etc/apache2/sites-available/{{ domain }}.conf
+   - name: Add index.html File. 
+     template: src=index.html dest=/home/{{ domain }}/public_html/ mode=644
+   - name: Enable new site
+     command: a2ensite {{domain}}.conf
+     args:
+       creates: /etc/apache2/sites-enabled/{{ domain }}.conf
+     notify:
+       - restart apache2
+  handlers:
+    - name: restart apache2
+      service: name=apache2 state=reloaded
+
