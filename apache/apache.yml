@@ -1,0 +1,33 @@
+---
+- hosts: apache 
+  vars:
+    http_port: 80
+    domain: arun.com
+  tasks:
+    - name: Installing Apache2
+      apt: name=apache2 update_cache=yes state=latest
+    - name: enable modules
+      apache2_module: name="{{item}}" state=present
+      with_items:
+            - headers
+            - expires
+            - rewrite
+      notify:
+        - restart apache2 
+    - name: change Apache port
+      lineinfile: dest=/etc/apache2/ports.conf regexp='^Listen 8080' line='Listen 80'   backrefs=yes state=present
+      notify:
+        - restart apache2
+    - name: create Folder for domain. 
+      file: path=/var/www/{{ domain }} state=directory owner=www-data group=www-data mode=0755
+    - name: create New Domain Virtualhost File in apache 
+      template: src=virtualhost.conf dest=/etc/apache2/sites-available/{{ domain }}.conf
+    - name: Enable new site
+      command: a2ensite {{domain}}.conf
+      args:
+        creates: /etc/apache2/sites-enabled/{{ domain }}.conf
+      notify:
+         - restart apache2
+  handlers: 
+       - name: restart apache2
+         service: name=apache2 state=restarted 

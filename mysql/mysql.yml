@@ -1,0 +1,26 @@
+---
+- hosts: mysql
+  vars:
+   mysql_root_password: password
+  tasks:
+    - name: Install mysql
+      apt: name={{item}} update_cache=yes state=latest
+      with_items:
+         - mysql-server
+         - mysql-client
+         - python-mysqldb
+         - htop
+         - zip 
+         - vnstat
+
+    - name: Start Mysql Server
+      service: name=mysql state=started enabled=true
+    - name: Remove Anonymous user
+      mysql_user: name='' host_all=yes state=absent    
+    - name: Change Mysql root password and save config.
+      mysql_user: name=root password="{{ mysql_root_password }}" check_implicit_admin=yes state=present
+    - name: Place new root password in my.cnf
+      template: src=my.cnf dest=/root/.my.cnf 
+    - name: create new user
+      mysql_user: name=bob password=12345 priv=*.*:USAGE state=present sql_log_bin=no
+
